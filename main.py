@@ -1,16 +1,29 @@
-from models import User
-from services import UserService
+from fastapi import FastAPI, HTTPException
+from services.user_service import UserService
+from schemas.user_schema import UserCreate, UserResponse
+from excepts.user_except import UserAlreadyExistsError, UserNotFoundError
 
-def main():
-    service = UserService()
+app = FastAPI(title="User Management API")
 
-    user1 = User(1, "Thiago", "thiago@email.com")
-    user2 = User(2, "Juan", "juan@email.com")
+user_service = UserService()
 
-    service.add_user(user1)
-    service.add_user(user2)
 
-    print(service.list_users())
+@app.post("/users", response_model=UserResponse)
+def create_user(user: UserCreate):
+    try:
+        return user_service.create_user(user)
+    except UserAlreadyExistsError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-if __name__ == "__main__":
-    main()
+
+@app.get("/users", response_model=list[UserResponse])
+def get_users():
+    return user_service.get_all_users()
+
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int):
+    try:
+        return user_service.get_user_by_id(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
