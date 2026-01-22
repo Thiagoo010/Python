@@ -1,23 +1,32 @@
-from models.user import User
+from sqlalchemy.orm import Session
+from models.user_models import User
 from excepts.user_except import UserAlreadyExistsError, UserNotFoundError
 
-
 class UserService:
-    def __init__(self):
-        self.users = []
+    def __init__(self, db: Session):
+        self.db = db
 
-    def create_user(self, user: User):
-        if any(u.id == user.id for u in self.users):
-            raise UserAlreadyExistsError(f"User with id {user.id} already exists")
+    def create_user(self, user):
+        exists = self.db.query(User).filter(User.email == user.email).first()
+        if exists:
+            raise UserAlreadyExistsError("El usuario ya existe")
 
-        self.users.append(user)
-        return user
+        new_user = User(
+            name=user.name,
+            email=user.email
+        )
+
+        self.db.add(new_user)
+        self.db.commit()
+        self.db.refresh(new_user)
+
+        return new_user
 
     def get_all_users(self):
-        return self.users
+        return self.db.query(User).all()
 
     def get_user_by_id(self, user_id: int):
-        for user in self.users:
-            if user.id == user_id:
-                return user
-        raise UserNotFoundError(f"User with id {user_id} not found")
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise UserNotFoundError("Usuario no encontrado")
+        return user
